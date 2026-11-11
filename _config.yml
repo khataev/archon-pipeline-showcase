@@ -1,0 +1,9 @@
+title: Archon Development Pipeline
+description: Управляемая агентная разработка с участием человека
+markdown: kramdown
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - node_modules

@@ -1,3 +1,8 @@
+---
+layout: default
+mermaid: true
+---
+
 # Архитектура и поведение
 
 [← README](../README.md) · [Интерактивная карта](pipeline.html) · [Запуск и адаптация](setup.md)

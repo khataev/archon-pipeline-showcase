@@ -212,6 +212,10 @@
   <script>
     "use strict";
 
+    if (location.protocol !== "file:") {
+      document.querySelectorAll('a[href="architecture.md"]').forEach((link) => link.setAttribute("href", "architecture.html"));
+    }
+
     const kinds = {
       agent: {label: "Агент", color: "#4262bd"},
       script: {label: "Скрипт", color: "#647489"},

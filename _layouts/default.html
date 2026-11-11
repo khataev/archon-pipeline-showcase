@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | default: site.title | escape }} · {{ site.title | escape }}</title>
+  <meta name="description" content="{{ site.description | escape }}">
+  <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="navigation" aria-label="Основная навигация">
+      <a class="brand" href="{{ '/' | relative_url }}">↗ <span>Archon Development Pipeline</span></a>
+      <div class="nav-links">
+        <a href="{{ '/docs/pipeline.html' | relative_url }}">Карта процесса</a>
+        <a href="{{ '/docs/architecture.html' | relative_url }}">Архитектура</a>
+        <a href="{{ '/docs/setup.html' | relative_url }}">Адаптация</a>
+        {% if site.github.repository_url %}<a href="{{ site.github.repository_url }}">GitHub ↗</a>{% endif %}
+      </div>
+    </nav>
+  </header>
+  <main class="content">{{ content }}</main>
+  <footer class="site-footer">Демонстрация процесса · без заявлений о production-прогонах</footer>
+  <script src="{{ '/assets/site.js' | relative_url }}" defer></script>
+  {% if page.mermaid %}
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
+    const blocks = document.querySelectorAll('pre > code.language-mermaid');
+    const diagrams = Array.from(blocks, (code) => {
+      const node = document.createElement('div');
+      node.className = 'mermaid';
+      node.textContent = code.textContent;
+      code.parentElement.replaceWith(node);
+      return node;
+    });
+    await mermaid.run({ nodes: diagrams });
+  </script>
+  {% endif %}
+</body>
+</html>

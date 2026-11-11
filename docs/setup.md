@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Изучение и адаптация
 
 [← README](../README.md) · [Архитектура](architecture.md)
