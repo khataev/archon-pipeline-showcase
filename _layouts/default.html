@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ru">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,6 +8,7 @@
   <meta name="description" content="{{ site.description | escape }}">
   <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
 </head>
+
 <body>
   <header class="site-header">
     <nav class="navigation" aria-label="Основная навигация">
@@ -14,7 +16,6 @@
       <div class="nav-links">
         <a href="{{ '/docs/pipeline.html' | relative_url }}">Карта процесса</a>
         <a href="{{ '/' | relative_url }}#architecture">Архитектура</a>
-        <a href="{{ '/docs/setup.html' | relative_url }}">Адаптация</a>
         {% if site.github.repository_url %}<a href="{{ site.github.repository_url }}">GitHub ↗</a>{% endif %}
       </div>
     </nav>
@@ -38,4 +39,5 @@
   </script>
   {% endif %}
 </body>
+
 </html>
