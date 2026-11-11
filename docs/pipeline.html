@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Agentic development — карта пайплайна</title>
+  <style>
+    :root {
+      --paper: #f5f6f8; --surface: #fff; --ink: #17263c; --muted: #65748a;
+      --line: #e0e5ed; --accent: #087d6b; --accent-light: #e8f6f1;
+      --agent: #4262bd; --human: #95620b; --script: #647489; --artifact: #8153a2;
+      --shadow: 0 8px 28px #15293e06;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, select { font: inherit; }
+    button, a, select { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid #63b8a7; outline-offset: 3px; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    code, .mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .86em; overflow-wrap: anywhere; }
+    .shell { max-width: 1480px; margin: 0 auto; padding: 0 32px; }
+    header { border-bottom: 1px solid var(--line); background: var(--surface); }
+    .topbar { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: -.3px; }
+    .brand-mark { background: var(--ink); color: #fff; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-size: 21px; }
+    .brand small { color: var(--muted); font-weight: 400; margin-left: 8px; letter-spacing: 0; }
+    .header-actions { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+    .quiet-button { background: var(--surface); color: var(--muted); border: 1px solid var(--line); padding: 7px 13px; border-radius: 7px; }
+    .intro { padding-top: 34px; padding-bottom: 25px; }
+    .eyebrow { color: var(--accent); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: 1.6px; margin-bottom: 9px; }
+    h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); line-height: 1.2; font-weight: 700; letter-spacing: -1.2px; }
+    .intro p { color: var(--muted); margin: 12px 0 0; max-width: 850px; }
+    .facts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 19px; }
+    .fact { padding: 4px 10px; border-radius: 6px; background: #eaf0f4; color: #52647a; font-size: 12px; }
+    .controls { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .scenario-field { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .scenario-field label { font-size: 12px; font-weight: 650; color: var(--muted); }
+    select { min-width: 265px; max-width: 100%; background: var(--paper); border: 1px solid var(--line); color: var(--ink); border-radius: 7px; padding: 8px 30px 8px 11px; }
+    .walker { display: flex; align-items: center; gap: 8px; }
+    .walker button { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 7px; padding: 7px 12px; font-size: 13px; }
+    .walker button:disabled { opacity: .4; cursor: default; }
+    .walker .next { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .counter { min-width: 102px; color: var(--muted); font-size: 12px; text-align: center; }
+    .scenario-note { min-height: 62px; padding: 13px 3px 14px; display: flex; gap: 9px; align-items: flex-start; color: var(--muted); font-size: 13px; }
+    .scenario-note span:first-child { color: var(--accent); font-size: 17px; line-height: 1.3; }
+    .tabs { display: flex; gap: 25px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+    .tab { flex-shrink: 0; background: none; border: 0; border-bottom: 3px solid transparent; padding: 9px 1px 13px; color: var(--muted); font-size: 14px; }
+    .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); font-weight: 650; }
+    .tab small { margin-right: 6px; opacity: .55; font-size: 11px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 332px; gap: 22px; align-items: start; }
+    .map-card, .inspector { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; box-shadow: var(--shadow); min-width: 0; }
+    .map-toolbar { padding: 17px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+    .map-toolbar strong { font-size: 14px; }
+    .map-toolbar .map-hint { color: var(--muted); font-size: 11px; }
+    .map-viewport { max-height: 830px; overflow: auto; scrollbar-color: #ccd6df transparent; scrollbar-width: thin; }
+    .map-svg { display: block; width: 100%; min-width: 760px; height: auto; }
+    .edge { fill: none; stroke: #a9b5c4; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .edge.loop { stroke: #91aaa4; stroke-dasharray: 5 5; }
+    .edge.artifact { stroke: #b6a7c6; stroke-dasharray: 3 5; }
+    .edge.active { stroke: var(--accent); stroke-width: 3; }
+    .edge-label { font: 11px ui-monospace, Consolas, monospace; fill: #65748a; }
+    .edge-label-bg { fill: #fbfcfd; }
+    .stage { cursor: pointer; outline: none; }
+    .stage rect.node-body { fill: #fff; stroke: #d6dee8; stroke-width: 1.3; }
+    .stage:hover rect.node-body { stroke: #879aad; }
+    .stage.selected rect.node-body, .stage:focus-visible rect.node-body { stroke: var(--accent); stroke-width: 2.6; fill: #f0faf6; }
+    .stage.on-route rect.node-body { stroke: #83b6a9; fill: #f8fcfa; }
+    .stage.on-route.selected rect.node-body { fill: #eaf8f1; stroke: var(--accent); }
+    .stage-title { font-size: 16px; font-weight: 650; fill: var(--ink); letter-spacing: -.25px; }
+    .stage-subtitle { font: 11.5px ui-monospace, Consolas, monospace; fill: #728197; }
+    .stage-kind { font-size: 10px; letter-spacing: 1.1px; font-weight: 700; }
+    .stage-number { font: 11px ui-monospace, Consolas, monospace; fill: #96a2b0; text-anchor: end; }
+    .legend { padding: 13px 20px; display: flex; gap: 17px; flex-wrap: wrap; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .inspector { position: sticky; top: 20px; padding: 23px 22px; }
+    .inspector-tag { color: var(--accent); text-transform: uppercase; font-size: 10px; font-weight: 750; letter-spacing: 1.2px; }
+    .inspector h2 { font-size: 23px; line-height: 1.25; letter-spacing: -.6px; margin: 10px 0 8px; }
+    .node-id { display: block; color: #8894a4; font-size: 11px; margin-bottom: 16px; }
+    .inspector-summary { color: #586b80; font-size: 13px; }
+    .inspector-section { border-top: 1px solid var(--line); padding-top: 15px; margin-top: 18px; }
+    .inspector-section h3 { color: var(--muted); font-size: 10px; letter-spacing: 1.2px; font-weight: 750; text-transform: uppercase; margin: 0 0 10px; }
+    .detail-list { margin: 0; padding-left: 15px; font-size: 12px; color: #52667c; }
+    .detail-list li { margin: 6px 0; }
+    .transition { padding: 8px 10px; margin: 7px 0; border-radius: 6px; background: #f4f7f9; font-size: 12px; }
+    .transition code { color: var(--accent); display: block; font-size: 11px; font-weight: 650; margin-bottom: 3px; }
+    .artifact-chip { display: block; width: 100%; text-align: left; padding: 8px 10px; margin: 6px 0; border: 1px solid #e7dfed; border-radius: 6px; background: #fcf9fd; color: #785491; font: 11px/1.4 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    .expand-button { margin-top: 18px; width: 100%; padding: 10px; border: 0; background: var(--accent-light); color: var(--accent); font-weight: 650; border-radius: 7px; font-size: 12px; }
+    .footnote { color: var(--muted); font-size: 12px; margin-top: 15px; }
+    .artifact-catalog { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .artifact-card { padding: 21px; background: #fff; border: 1px solid var(--line); border-radius: 11px; scroll-margin-top: 20px; }
+    .artifact-card.highlight { border-color: var(--accent); box-shadow: 0 0 0 2px #087d6b20; }
+    .artifact-card .storage { font-size: 10px; color: var(--artifact); letter-spacing: .7px; text-transform: uppercase; }
+    .artifact-card h2 { font-size: 16px; letter-spacing: -.3px; margin: 10px 0 7px; }
+    .artifact-card .path { display: block; color: #7b8799; font-size: 10.5px; margin-bottom: 14px; }
+    .artifact-card p { font-size: 12px; color: #617187; margin: 9px 0; }
+    .artifact-card dl { font-size: 11px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 16px; }
+    .artifact-card dt { color: #8c97a6; margin-top: 8px; }
+    .artifact-card dd { margin: 2px 0 0; color: #4a6075; }
+    .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; padding: 28px 0; margin-top: 20px; border-top: 1px solid var(--line); }
+    .principles h2 { margin: 0 0 7px; font-size: 13px; }
+    .principles p { color: var(--muted); font-size: 12px; margin: 0; }
+    footer { padding: 8px 0 30px; display: flex; justify-content: space-between; gap: 20px; color: #8b97a6; font-size: 11px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: minmax(0, 1fr) 285px; gap: 14px; }
+      .shell { padding: 0 20px; }
+      .inspector { padding: 20px 17px; }
+      .artifact-catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .shell { padding: 0 14px; }
+      .topbar { min-height: 60px; }
+      .brand small, .header-actions a { display: none; }
+      .intro { padding-top: 25px; }
+      .intro p { font-size: 13px; }
+      .controls { padding: 12px; gap: 12px; }
+      .scenario-field, select { width: 100%; }
+      .walker { width: 100%; justify-content: space-between; }
+      .workspace { grid-template-columns: minmax(0, 1fr); }
+      .inspector { position: static; }
+      .map-viewport { max-height: 680px; }
+      .map-toolbar { padding: 14px; }
+      .map-toolbar .map-hint { max-width: 120px; text-align: right; }
+      .tabs { gap: 20px; }
+      .artifact-catalog { grid-template-columns: 1fr; }
+      .principles { grid-template-columns: 1fr; gap: 20px; }
+      footer { flex-direction: column; gap: 5px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+    @media print {
+      body { background: #fff; }
+      header, .controls, .scenario-note, .tabs, .header-actions, .walker { display: none; }
+      .shell { padding: 0; }
+      .workspace { display: block; }
+      .map-viewport { max-height: none; overflow: visible; }
+      .map-svg { min-width: 0; }
+      .inspector { position: static; margin-top: 15px; break-inside: avoid; }
+      .artifact-catalog { grid-template-columns: 1fr 1fr; }
+      .artifact-card { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span> Agentic development <small>карта процесса</small></div>
+      <div class="header-actions">
+        <a href="../examples/workflow.yaml">Снимок workflow ↗</a>
+        <button class="quiet-button" type="button" id="print">Печать</button>
+      </div>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div class="eyebrow">Archon / OpenSpec / GitHub</div>
+      <h1 id="page-title">Как задача проходит через пайплайн</h1>
+      <p>Проследите путь от карточки Planka до архивации. Выберите сценарий, чтобы увидеть возвраты на доработку, или нажмите на стадию — появятся её входы, артефакты и условия перехода.</p>
+      <div class="facts"><span class="fact">Один worktree задачи</span><span class="fact">Один draft PR</span><span class="fact">Два цикла доработки</span><span class="fact">Независимый Verify</span></div>
+    </section>
+    <div class="controls">
+      <div class="scenario-field">
+        <label for="scenario">Маршрут</label>
+        <select id="scenario">
+          <option value="all">Все переходы</option>
+          <option value="success">Основной маршрут</option>
+          <option value="plan">Доработать план</option>
+          <option value="blocker">Ответить на блокер Apply</option>
+          <option value="rework">Исправить реализацию</option>
+          <option value="waiver">Принять исключение из Verify</option>
+          <option value="stop">Отложить архивацию</option>
+        </select>
+      </div>
+      <div class="walker" aria-label="Просмотр шагов сценария">
+        <button id="previous" type="button">← Назад</button>
+        <span id="counter" class="counter" aria-live="polite">Выберите маршрут</span>
+        <button id="next" type="button" class="next">Далее →</button>
+      </div>
+    </div>
+    <div class="scenario-note"><span aria-hidden="true">↳</span><span id="scenario-note">Это интерактивная документация. Выбор сценария подсвечивает маршрут и не запускает workflow.</span></div>
+    <nav class="tabs" role="tablist" aria-label="Разделы пайплайна">
+      <button class="tab" id="tab-overview" data-view="overview" role="tab" aria-controls="workspace" aria-selected="true"><small>01</small>Весь процесс</button>
+      <button class="tab" id="tab-plan" data-view="plan" role="tab" aria-controls="workspace" aria-selected="false" tabindex="-1"><small>02</small>Цикл плана</button>
+      <button class="tab" id="tab-implementation" data-view="implementation" role="tab" aria-controls="workspace" aria-selected="false" tabindex="-1"><small>03</small>Цикл реализации</button>
+      <button class="tab" id="tab-artifacts" data-view="artifacts" role="tab" aria-controls="artifacts" aria-selected="false" tabindex="-1"><small>04</small>Артефакты</button>
+    </nav>
+    <div id="workspace" class="workspace" role="tabpanel" aria-labelledby="tab-overview">
+      <section class="map-card" aria-label="Схема переходов">
+        <div class="map-toolbar"><strong id="map-title">От карточки до «Тест»</strong><span class="map-hint">Нажмите на стадию · схему можно прокручивать</span></div>
+        <div class="map-viewport" id="map-viewport"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--agent)"></i>Агент</span>
+          <span><i class="dot" style="background:var(--script)"></i>Скрипт</span>
+          <span><i class="dot" style="background:var(--human)"></i>Человек</span>
+          <span><i class="dot" style="background:var(--artifact)"></i>Артефакт</span>
+          <span>⇢ Возврат на доработку</span>
+        </div>
+      </section>
+      <aside class="inspector" id="inspector" aria-label="Описание выбранной стадии" aria-live="polite"></aside>
+    </div>
+    <section id="artifacts" class="artifact-catalog" role="tabpanel" aria-labelledby="tab-artifacts" hidden></section>
+    <section class="principles" aria-label="Правила процесса">
+      <div><h2>Ответ в wait продолжает процесс</h2><p>Комментарии и changes requested в PR содержат замечания. Следующий проход запускается ответом человека в Archon.</p></div>
+      <div><h2>Verify сообщает, человек решает</h2><p>ready и needs_work показываются на приёмке. Возврат в Apply происходит по rework, а архивация требует отдельного approve.</p></div>
+      <div><h2>Повторяется работа по замечаниям</h2><p>Один Apply выполняет все оставшиеся задачи или исправления. Цикл не означает «одна подзадача — один агент».</p></div>
+    </section>
+    <footer><span>Схема адаптированного процесса · без внешних библиотек и подключений</span><a href="architecture.md">Текстовая документация ↗</a></footer>
+    <noscript><p>Для интерактивной схемы нужен JavaScript. <a href="architecture.md">Открыть текстовое описание пайплайна.</a></p></noscript>
+  </main>
+  <script>
+    "use strict";
+
+    const kinds = {
+      agent: {label: "Агент", color: "#4262bd"},
+      script: {label: "Скрипт", color: "#647489"},
+      human: {label: "Человек", color: "#95620b"},
+      artifact: {label: "Артефакт", color: "#8153a2"},
+      cycle: {label: "Цикл", color: "#087d6b"}
+    };
+    const artifacts = {
+      explore: {title: "Итоги Explore", path: "tmp/archon/RUN/explore/result.md", storage: "Временный файл · не в Git", description: "Согласованные выводы и решения интерактивного обсуждения. После записи и закрытия файла отправляется событие explore.completed.", producer: "Explore", consumer: "Propose; полный текст также остаётся в output read-explore"},
+      proposal: {title: "proposal.md", path: "openspec/changes/CHANGE/proposal.md", storage: "В Git и draft PR", description: "Цель, границы изменения и связь с тикетом. Его актуальная копия помещается в служебный раздел описания PR.", producer: "Propose / revise-proposal; Apply по указанию человека", consumer: "Apply, Verify, человек"},
+      specs: {title: "Delta specs", path: "openspec/changes/CHANGE/specs/**/spec.md", storage: "В Git и draft PR", description: "Требуемое поведение и сценарии приёмки. После одобрения архивации синхронизируются с основными спецификациями.", producer: "Propose / revise-proposal; Apply по указанию человека", consumer: "Apply, Verify, Archive"},
+      design: {title: "design.md", path: "openspec/changes/CHANGE/design.md", storage: "В Git и draft PR", description: "Технические решения и ограничения. Verify проверяет согласованность реализации с этим документом.", producer: "Propose / revise-proposal; Apply по указанию человека", consumer: "Apply и Verify"},
+      tasks: {title: "tasks.md", path: "openspec/changes/CHANGE/tasks.md", storage: "В Git и draft PR", description: "План подзадач. Apply отмечает выполненную подзадачу вместе с коммитом её реализации; Verify проверяет полноту.", producer: "План создаёт Propose; отметки обновляет Apply", consumer: "Apply и Verify"},
+      code: {title: "Код и тесты", path: "Файлы реализации и локальные Git-коммиты", storage: "Git · публикация перед приёмкой", description: "Apply коммитит каждую выполненную подзадачу. Правки по комментариям PR фиксируются отдельно. При блокере незавершённые локальные правки сохраняются для следующего прохода.", producer: "Apply", consumer: "Verify и человек через PR"},
+      review: {title: "review.md", path: "openspec/changes/CHANGE/review.md", storage: "В Git и draft PR", description: "Отчёт независимого Verify: полнота, корректность, согласованность, замечания и вердикт. Перезаписывается актуальной проверкой на каждом проходе.", producer: "Verify; коммит и push делает publish-review", consumer: "Человек, следующий Apply, Archive"},
+      comments: {title: "Обсуждения PR", path: "Общие комментарии, reviews и inline-треды GitHub", storage: "GitHub", description: "Замечания, ответы, возражения и решения пропустить конкретные находки. Агенты сами читают обсуждения, включая ответы на устаревшие строки review.md.", producer: "Человек и агенты", consumer: "revise-proposal, Apply, Verify и Archive"},
+      proposalNote: {title: "Текст одобрения плана", path: "$ARTIFACTS_DIR/proposal-feedback.txt", storage: "Артефакт запуска · не в Git", description: "Сохраняется только при финальном approve. Например: «Предусловие выполнено». Промежуточный reject передаётся через $LOOP_PREV.", producer: "until_bash цикла propose-gate", consumer: "Apply через proposal-answer"},
+      implementationNote: {title: "Текст приёмки реализации", path: "$ARTIFACTS_DIR/implementation-feedback.txt", storage: "Артефакт запуска · не в Git", description: "Сохраняется при accept, если Apply вернул completed. Промежуточные ответы rework и continue поступают следующему Apply через $LOOP_PREV.", producer: "until_bash цикла implementation", consumer: "Archive через implementation-answer"},
+      mainSpecs: {title: "Основные спецификации", path: "openspec/specs/", storage: "В Git", description: "Archive синхронизирует сюда одобренные delta specs до переноса change в архив.", producer: "Archive", consumer: "Дальнейшая разработка и проверка проекта"},
+      archive: {title: "Архив change", path: "openspec/changes/archive/ДАТА-CHANGE/", storage: "В Git и существующем PR", description: "История завершённого изменения: proposal, specs, design, tasks и review.md. Финальный Push коммитит архив и синхронизацию specs.", producer: "Archive → Push", consumer: "Человек и история проекта"}
+    };
+    const stages = {
+      brief: {title: "Прочитать карточку", subtitle: "brief", kind: "script", summary: "Получает задачу из Planka и определяет, требуется ли интерактивный Explore.", inputs: ["Карточка в Planka, её описание и метки"], outputs: ["ticket, FEATURE-ID, title, description", "skip_explore; stage=running и run_id на карточке"], transitions: [["skip_explore = false", "Запустить Explore."], ["skip_explore = true", "Сразу перейти к Propose."]]},
+      explore: {title: "Обсудить задачу", subtitle: "explore → explore-gate", kind: "agent", summary: "Интерактивный Codex в herdr обсуждает задачу с человеком. Сессия работает в worktree задачи.", inputs: ["Бриф карточки", "Уточнения и решения человека"], outputs: ["result.md после завершения обсуждения", "Событие explore.completed"], files: ["explore"], transitions: [["Файл записан + событие отправлено", "read-explore читает итог и передаёт его Propose."], ["Дедлайн 7 дней истёк / итог пуст", "Propose не запускается; этап завершается ошибкой."]]},
+      "plan-cycle": {title: "План и согласование", subtitle: "Propose → draft PR → approve", kind: "cycle", summary: "Сначала создаётся план и draft PR. Затем человек принимает план или возвращает его на доработку. На первом проходе лишнего вызова доработки нет.", inputs: ["Бриф и выводы Explore"], outputs: ["Согласованный OpenSpec change", "Текст финального approve для Apply"], files: ["proposal", "specs", "design", "tasks", "proposalNote"], transitions: [["reject", "Доработка → обновление того же PR → повторный вопрос."], ["approve", "Выход из цикла к Apply."]], expand: "plan"},
+      "implementation-cycle": {title: "Реализация и приёмка", subtitle: "Apply → Verify → PR → accept", kind: "cycle", summary: "Apply реализует задачи или исправляет замечания. Verify проверяет результат отдельно. Один wait собирает приёмку либо ответ на вопрос Apply.", inputs: ["Согласованный change", "PR, review.md и ответы человека"], outputs: ["Код, тесты и отчёт в PR", "Принятый человеком результат"], files: ["code", "review", "comments", "implementationNote"], transitions: [["rework / continue", "Новый проход Apply."], ["accept + Apply completed", "Отдельный вопрос об архивации."]], expand: "implementation"},
+      propose: {title: "Создать план", subtitle: "propose · Sol 6.1 / medium", kind: "agent", summary: "По брифу и выводам Explore создаёт все OpenSpec-артефакты. Имя change сохраняется на всём дальнейшем пути.", inputs: ["Бриф", "Согласованные выводы Explore, если этап выполнялся"], outputs: ["proposal, delta specs, design, tasks", "change_name, open_questions, risk"], files: ["proposal", "specs", "design", "tasks"], transitions: [["Артефакты созданы", "Передать их скрипту публикации."]]},
+      "planning-files": {title: "Артефакты плана", subtitle: "proposal / specs / design / tasks", kind: "artifact", summary: "Общий контракт реализации и проверки. Содержит цель изменения, требования, технические решения и подзадачи.", inputs: ["Решения Propose или доработки"], outputs: ["Файлы в openspec/changes/CHANGE/"], files: ["proposal", "specs", "design", "tasks"], transitions: [["Явное указание человека", "Apply также может привести план к согласованной реализации."]]},
+      "publish-proposal": {title: "Опубликовать план", subtitle: "publish-proposal", kind: "script", summary: "Коммитит артефакты change, публикует ветку и создаёт draft PR. Существующий draft PR той же ветки используется повторно.", inputs: ["Артефакты change", "FEATURE-ID, заголовок и базовая ветка"], outputs: ["Draft PR с актуальным proposal", "URL PR"], files: ["proposal", "comments"], transitions: [["Публикация успешна", "iteration-start → обязательный publish внутри цикла → первый вопрос человеку."], ["Ошибка Git / GitHub", "Остановить процесс до вопроса."]]},
+      "iteration-start": {title: "Начать итерацию", subtitle: "iteration-start · bash true", kind: "script", summary: "Безусловный технический узел в начале каждого прохода. Его успех обеспечивает min_one_success для публикации, когда revise пропущен. Состояние прошлого прохода не восстанавливает.", inputs: ["Начало новой итерации либо перезапуск группы после failure"], outputs: ["Успешное завершение узла; новые артефакты не создаются"], transitions: [["Предыдущий ответ — reject", "Запустить revise, затем publish."], ["Первый проход / failure resume", "Пропустить revise и выполнить publish."], ["revise завершился ошибкой", "none_failed_min_one_success блокирует publish и approval."]]},
+      "human-proposal-review": {title: "Принять план?", subtitle: "human-proposal-review · approval", kind: "human", summary: "Человек читает план в PR. Замечания можно написать прямо в ответе или оставить в GitHub и указать это в тексте.", inputs: ["Опубликованные артефакты и URL PR", "Риск и открытые вопросы"], outputs: ["decision и текст ответа"], files: ["comments"], transitions: [["reject + текст", "revise-proposal читает замечания и дорабатывает существующий change."], ["approve", "Сохранить финальный текст и выйти из цикла."]]},
+      revise: {title: "Доработать план", subtitle: "revise-proposal · Sol 6.1", kind: "agent", summary: "Читает ответ человека и актуальные обсуждения PR. Обновляет согласованно существующие proposal, specs, design и tasks.", inputs: ["Текст предыдущего reject через $LOOP_PREV", "Комментарии, reviews и inline-треды PR"], outputs: ["Исправленные артефакты", "Ответы на замечания в исходных тредах"], files: ["proposal", "specs", "design", "tasks", "comments"], transitions: [["Доработка завершена", "Опубликовать изменения и снова спросить человека."]]},
+      republish: {title: "Обновить тот же PR", subtitle: "publish · перед approval", kind: "script", summary: "Выполняется в каждой итерации, даже при пропущенном revise. Публикует текущие артефакты и обновляет раздел proposal в PR. После failure resume повторяет push оставшегося локального коммита и обновление PR без лишнего коммита.", inputs: ["Текущие артефакты и локальные коммиты", "Успешный iteration-start и успешный либо пропущенный revise; правило none_failed_min_one_success"], outputs: ["Опубликованный план для ревью"], files: ["proposal", "comments"], transitions: [["Публикация успешна", "Показать wait approval."], ["Ошибка публикации", "Остановиться до approval; после resume повторить публикацию."]]},
+      "proposal-answer": {title: "Передать текст в Apply", subtitle: "proposal-feedback.txt", kind: "artifact", summary: "После approve цикл сохраняет только финальный текст человека. Узел proposal-answer читает его без потери кавычек и переносов строк.", inputs: ["Текст финального approve"], outputs: ["proposal_feedback для Apply"], files: ["proposalNote"], transitions: [["Текст сохранён и прочитан", "Начать цикл реализации."]], expand: "implementation"},
+      apply: {title: "Реализовать / исправить", subtitle: "apply · Terra 6.1 / medium", kind: "agent", summary: "За вызов выполняет все оставшиеся подзадачи либо доработки. Читает PR и review.md даже при всех выполненных галочках. По указанию человека может обновить план.", inputs: ["tasks, specs, design и proposal", "Текст approve; ответ предыдущего rework или continue", "Обсуждения PR и существующий review.md"], outputs: ["Код, тесты, отметки tasks.md и локальные коммиты", "status: completed или needs_input; summary"], files: ["tasks", "code", "review", "comments"], transitions: [["completed", "Передать результат независимому Verify."], ["needs_input", "Оставить вопрос или возражение в PR и перейти к ожиданию ответа."]]},
+      verify: {title: "Независимо проверить", subtitle: "verify · Sol 6.1 / medium", kind: "agent", summary: "Новая сессия сверяет фактическую реализацию с актуальными OpenSpec-артефактами. Учитывает явные исключения, принятые человеком в PR.", inputs: ["Реализация и актуальные артефакты", "Все обсуждения PR, включая старые строки review.md"], outputs: ["Перезаписанный review.md", "verdict: ready или needs_work; summary"], files: ["review"], transitions: [["Любой из двух вердиктов", "Опубликовать отчёт и показать его человеку."], ["Техническая ошибка", "Процесс останавливается до приёмки."]]},
+      "review-file": {title: "Отчёт проверки", subtitle: "review.md", kind: "artifact", summary: "Содержит scorecard и замечания CRITICAL / WARNING / SUGGESTION. Каждая повторная проверка заменяет отчёт актуальным.", inputs: ["Результат проверки Verify"], outputs: ["Основание для приёмки и следующего Apply"], files: ["review", "comments"], transitions: [["Человек разрешает исключение", "Оставляет ответ на соответствующую строку файла в PR."]]},
+      "publish-review": {title: "Опубликовать результат", subtitle: "publish-review", kind: "script", summary: "Коммитит review.md и публикует готовые коммиты Apply вместе с отчётом до приёмки. При изменении плана обновляет его копию в описании PR.", inputs: ["Закоммиченные изменения Apply", "Непустой review.md и вердикт Verify"], outputs: ["Актуальный код и отчёт в PR", "Опубликованный SHA"], files: ["code", "review"], transitions: [["Публикация успешна", "Показать человеку приёмку."], ["Код остался незакоммиченным / push упал", "Остановиться до приёмки."]]},
+      "publish-blocked": {title: "Опубликовать вопрос", subtitle: "publish-review · needs_input", kind: "script", summary: "Вопрос или возражение уже оставлены Apply в PR. Скрипт публикует готовые коммиты и обновляет сводку ожидания. Новый Verify в этом проходе не выполнялся.", inputs: ["Вопрос Apply и ссылка на комментарий", "Готовые локальные коммиты"], outputs: ["Сводка needs_input в существующем PR"], files: ["comments", "code"], transitions: [["После публикации", "Wait предлагает передать ответ и продолжить Apply."]]},
+      "human-implementation-review": {title: "Решение человека", subtitle: "human-implementation-review · select", kind: "human", summary: "Один узел ожидания обслуживает две ситуации. При блокере собирает ответ; после Verify — приёмку опубликованной реализации.", inputs: ["Вопрос Apply либо опубликованный отчёт Verify"], outputs: ["decision и текст ответа"], files: ["comments"], transitions: [["continue · при needs_input", "Ответить здесь или в PR; повторить Apply.", "continue"], ["rework · после Verify", "Исправить замечания новым Apply, затем снова Verify.", "rework"], ["accept · при completed", "Принять результат и выйти к разрешению архивации.", "accept"]]},
+      "implementation-answer": {title: "Передать текст в Archive", subtitle: "implementation-feedback.txt", kind: "artifact", summary: "Цикл заканчивается, только когда Apply завершён и человек выбрал accept. Сохраняется текст финальной приёмки.", inputs: ["Apply.status = completed", "Человек выбрал accept"], outputs: ["acceptance_text для Archive"], files: ["implementationNote"], transitions: [["Приёмка состоялась", "Отдельно спросить разрешение на архивацию."]]},
+      "archive-gate": {title: "Разрешить архивацию?", subtitle: "archive-gate · approval", kind: "human", summary: "Приёмка реализации и разрешение архивации — разные решения. Здесь человек разрешает синхронизацию спецификаций и перенос change в архив.", inputs: ["Принятый результат", "Вердикт Verify, review.md и PR"], outputs: ["approve / reject и дополнительный текст"], files: ["review", "implementationNote"], transitions: [["approve", "Запустить Archive."], ["reject", "Завершить запуск, оставив change активным."]]},
+      archive: {title: "Синхронизировать и архивировать", subtitle: "archive · Sol 6.1 / medium", kind: "agent", summary: "Сам читает актуальные решения PR, синхронизирует delta specs и переносит change вместе с review.md в архив. Доску обновит отдельная стадия.", inputs: ["Разрешение архивации", "Обсуждения PR, review.md и текст приёмки"], outputs: ["Основные specs и архив change", "archived, archive_path и summary"], files: ["mainSpecs", "archive"], transitions: [["archived = true", "Финальный Push."], ["archived = false", "Завершить с причиной остановки; Push и Card пропустить."]]},
+      push: {title: "Обновить PR после Archive", subtitle: "push", kind: "script", summary: "Коммитит архив и синхронизацию спецификаций, публикует ветку и обновляет существующий PR. Новый PR не создаёт.", inputs: ["Успешная архивация и её путь"], outputs: ["Архив и итог в существующем PR"], files: ["archive", "mainSpecs"], transitions: [["Push успешен", "Обновить карточку."], ["Ошибка", "Card не выполняется."]]},
+      card: {title: "Перенести карточку в «Тест»", subtitle: "card", kind: "script", summary: "После успешного Push записывает итог, вердикт, архивный путь и ссылку на PR в Planka, затем переносит карточку в «Тест».", inputs: ["Успешный Push", "Вердикт и архивный путь"], outputs: ["stage=done, change_name, verdict", "Комментарий с итогом и карточка в «Тест»"], transitions: [["Готово", "Автоматический запуск завершён."]]},
+      "stop-active": {title: "Оставить change активным", subtitle: "archive отклонён", kind: "script", summary: "Run завершается без архивации. Реализация и review.md уже опубликованы для дальнейшей работы.", inputs: ["reject на archive-gate"], outputs: ["Активный change и существующий PR"], transitions: [["Окончание этого запуска", "Archive, финальный Push и Card пропускаются."]]},
+      "stop-archive": {title: "Архивация не завершена", subtitle: "archived = false", kind: "script", summary: "Архиватор сообщил о препятствии в summary. Успех архивации не подтверждён.", inputs: ["archived = false и причина"], outputs: ["Описание препятствия"], transitions: [["Окончание этого запуска", "Push и Card пропускаются."]]}
+    };
+    const box = (id, x, y, w = 300, h = 84) => ({id, x, y, w, h});
+    const edge = (from, to, path, label = "", x = 0, y = 0, type = "") => ({from, to, path, label, x, y, type});
+    const views = {
+      overview: {
+        title: "От карточки до «Тест»", width: 900, height: 980, initial: "brief",
+        nodes: [box("brief",300,25),box("explore",300,160),box("plan-cycle",300,295),box("implementation-cycle",300,430),box("archive-gate",300,565),box("archive",300,700),box("push",70,845),box("card",520,845),box("stop-active",675,565,210),box("stop-archive",675,700,210)],
+        edges: [
+          edge("brief","explore","M450 109 V160","Explore нужен",450,139),
+          edge("brief","plan-cycle","M300 67 H95 V337 H300","skip-explore",189,326),
+          edge("explore","plan-cycle","M450 244 V295","result.md + событие",450,274),
+          edge("plan-cycle","implementation-cycle","M450 379 V430","approve плана",450,409),
+          edge("implementation-cycle","archive-gate","M450 514 V565","accept + completed",450,544),
+          edge("archive-gate","archive","M450 649 V700","approve",450,679),
+          edge("archive-gate","stop-active","M600 607 H675","reject",637,597),
+          edge("archive","stop-archive","M600 742 H675","false",637,732),
+          edge("archive","push","M450 784 V814 H220 V845","archived = true",334,805),
+          edge("push","card","M370 887 H520","push успешен",445,876)
+        ]
+      },
+      plan: {
+        title: "Цикл 1 · согласование плана", width: 900, height: 1060, initial: "propose",
+        nodes: [box("propose",80,38,280),box("planning-files",530,38,280),box("publish-proposal",80,205,280),box("iteration-start",80,390,280),box("republish",530,390,280),box("revise",530,570,280,90),box("human-proposal-review",80,750,280,90),box("proposal-answer",80,930,280)],
+        edges: [
+          edge("propose","planning-files","M360 80 H530","создаёт",445,69,"artifact"),
+          edge("propose","publish-proposal","M220 122 V205","артефакты change",220,168),
+          edge("publish-proposal","iteration-start","M220 289 V390","draft PR",220,345),
+          edge("iteration-start","republish","M360 432 H530","revise skipped",445,420),
+          edge("iteration-start","revise","M220 474 V530 H610 V570","предыдущий reject",445,519,"loop"),
+          edge("revise","republish","M730 570 V474","исправления",730,519,"loop"),
+          edge("republish","human-proposal-review","M810 432 H860 V700 H220 V750","публикация успешна",510,689),
+          edge("human-proposal-review","iteration-start","M80 795 H30 V432 H80","reject",54,620,"loop"),
+          edge("human-proposal-review","proposal-answer","M220 840 V930","approve",220,885)
+        ]
+      },
+      implementation: {
+        title: "Цикл 2 · реализация и приёмка", width: 940, height: 1080, initial: "apply",
+        nodes: [box("apply",300,30),box("verify",300,230),box("publish-blocked",650,230,260),box("publish-review",300,420),box("review-file",650,420,260),box("human-implementation-review",300,620,300,90),box("implementation-answer",300,820),box("archive-gate",300,970)],
+        edges: [
+          edge("apply","verify","M450 114 V230","completed",450,179),
+          edge("apply","publish-blocked","M450 114 V155 H780 V230","needs_input",749,145),
+          edge("verify","review-file","M600 272 H620 V462 H650","пишет",662,369,"artifact"),
+          edge("verify","publish-review","M450 314 V420","ready / needs_work",450,375),
+          edge("publish-review","human-implementation-review","M450 504 V620","код и review.md в PR",450,570),
+          edge("publish-blocked","human-implementation-review","M910 272 H924 V665 H600","вопрос в PR",839,604),
+          edge("human-implementation-review","apply","M300 665 H130 V72 H300","rework / continue",174,385,"loop"),
+          edge("human-implementation-review","implementation-answer","M450 710 V820","accept + completed",450,776),
+          edge("implementation-answer","archive-gate","M450 904 V970","текст приёмки",450,944)
+        ]
+      }
+    };
+    const scenarios = {
+      all: {view:"overview",route:[],note:"Это интерактивная документация. Выбор сценария подсвечивает маршрут и не запускает workflow."},
+      success: {view:"overview",route:["brief","explore","plan-cycle","implementation-cycle","archive-gate","archive","push","card"],note:"План принят с первого раза, реализация прошла приёмку. После отдельного разрешения выполняются Archive, Push и перенос карточки в «Тест»."},
+      plan: {view:"plan",route:["propose","publish-proposal","iteration-start","republish","human-proposal-review","iteration-start","revise","republish","human-proposal-review","proposal-answer"],note:"Первый вопрос появляется сразу после публикации плана. Reject запускает доработку; повторный approve завершает цикл. Change и PR остаются теми же."},
+      blocker: {view:"implementation",route:["apply","publish-blocked","human-implementation-review","apply","verify","publish-review","human-implementation-review"],note:"Первый Apply вернул needs_input: Verify пропущен. На первом ожидании выберите continue и передайте ответ. Новый Apply продолжит работу; после completed выполняется Verify."},
+      rework: {view:"implementation",route:["apply","verify","publish-review","human-implementation-review","apply","verify","publish-review","human-implementation-review","implementation-answer","archive-gate"],note:"После опубликованного отчёта человек выбирает rework. Новый Apply исправляет замечания; новый независимый Verify снова проверяет результат. Затем возможен accept."},
+      waiver: {view:"implementation",route:["apply","verify","publish-review","human-implementation-review","implementation-answer","archive-gate"],note:"Человек явно разрешил исключение в треде на строке review.md. Даже при needs_work он может выбрать accept. Archive перечитает обсуждение; разрешение архивации запрашивается отдельно."},
+      stop: {view:"overview",route:["brief","explore","plan-cycle","implementation-cycle","archive-gate","stop-active"],note:"Результат уже принят и опубликован, но человек отклоняет архивацию. Change остаётся активным; финальные Push и Card пропускаются."}
+    };
+
+    const state = {view:"overview", selected:"brief", scenario:"all", step:0};
+    const svgNS = "http://www.w3.org/2000/svg";
+    const $ = (id) => document.getElementById(id);
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+    function svgElement(tag, attrs = {}, text) {
+      const node = document.createElementNS(svgNS, tag);
+      Object.entries(attrs).forEach(([key,value]) => node.setAttribute(key,String(value)));
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+    function updateHash() {
+      const params = new URLSearchParams({view:state.view,stage:state.selected,scenario:state.scenario,step:String(state.step)});
+      history.replaceState(null,"","#"+params.toString());
+    }
+    function selectedRoute() { return scenarios[state.scenario].route; }
+    function renderDiagram() {
+      const view = views[state.view];
+      const route = selectedRoute();
+      const pairs = route.slice(1).map((id,i) => route[i]+">"+id);
+      const svg = svgElement("svg",{viewBox:"0 0 "+view.width+" "+view.height,class:"map-svg",role:"group","aria-label":view.title});
+      const defs = svgElement("defs");
+      const pattern = svgElement("pattern",{id:"dots",width:18,height:18,patternUnits:"userSpaceOnUse"});
+      pattern.append(svgElement("circle",{cx:1,cy:1,r:.8,fill:"#e0e6ed"}));
+      defs.append(pattern);
+      ["normal","active"].forEach((name) => {
+        const marker = svgElement("marker",{id:"arrow-"+name,viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"});
+        marker.append(svgElement("path",{d:"M 1 1 L 9 5 L 1 9",fill:"none",stroke:name==="active"?"#087d6b":"#a9b5c4","stroke-width":1.6}));
+        defs.append(marker);
+      });
+      svg.append(defs,svgElement("rect",{width:"100%",height:"100%",fill:"#fbfcfd"}),svgElement("rect",{width:"100%",height:"100%",fill:"url(#dots)",opacity:.65}));
+      view.edges.forEach((line) => {
+        const active = pairs.includes(line.from+">"+line.to);
+        const opacity = route.length && !active && line.type!=="artifact" ? .25 : 1;
+        svg.append(svgElement("path",{d:line.path,class:"edge "+line.type+(active?" active":""),opacity,"marker-end":"url(#arrow-"+(active?"active":"normal")+")"}));
+        if (line.label) {
+          const group = svgElement("g",{opacity});
+          const width = Math.max(45,line.label.length*6.5+14);
+          group.append(svgElement("rect",{x:line.x-width/2,y:line.y-12,width,height:19,rx:5,class:"edge-label-bg"}));
+          group.append(svgElement("text",{x:line.x,y:line.y+1,"text-anchor":"middle",class:"edge-label"},line.label));
+          svg.append(group);
+        }
+      });
+      view.nodes.forEach((box,index) => {
+        const stage = stages[box.id];
+        const kind = kinds[stage.kind];
+        const group = svgElement("g",{class:"stage"+(state.selected===box.id?" selected":"")+(route.includes(box.id)?" on-route":""),tabindex:0,role:"button","aria-label":stage.title+" — "+kind.label,"aria-pressed":String(state.selected===box.id),"data-node":box.id});
+        group.append(svgElement("title",{},stage.summary));
+        group.append(svgElement("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:11,class:"node-body"}));
+        group.append(svgElement("rect",{x:box.x+15,y:box.y+17,width:5,height:5,rx:2.5,fill:kind.color}));
+        group.append(svgElement("text",{x:box.x+27,y:box.y+23,fill:kind.color,class:"stage-kind"},kind.label.toUpperCase()));
+        group.append(svgElement("text",{x:box.x+box.w-16,y:box.y+23,class:"stage-number"},String(index+1).padStart(2,"0")));
+        const compactTitles = {"stop-active":"Change активен","stop-archive":"Archive не завершён"};
+        const title = compactTitles[box.id] || stage.title;
+        const fontSize = title.length>27 ? 13 : title.length>23 ? 14 : 16;
+        group.append(svgElement("text",{x:box.x+16,y:box.y+47,class:"stage-title",style:"font-size:"+fontSize+"px"},title));
+        group.append(svgElement("text",{x:box.x+16,y:box.y+67,class:"stage-subtitle"},stage.subtitle));
+        svg.append(group);
+      });
+      $("map-viewport").replaceChildren(svg);
+      const selectedBox = view.nodes.find((box) => box.id===state.selected);
+      if (selectedBox) {
+        const scale = svg.getBoundingClientRect().width/view.width;
+        $("map-viewport").scrollLeft=(selectedBox.x+selectedBox.w/2)*scale-$("map-viewport").clientWidth/2;
+      }
+      $("map-title").textContent = view.title;
+    }
+    function renderInspector() {
+      const stage = stages[state.selected];
+      const panel = $("inspector");
+      const kind = kinds[stage.kind];
+      const tag = element("div","inspector-tag",kind.label);
+      tag.style.color = kind.color;
+      panel.replaceChildren(tag,element("h2","",stage.title),element("code","node-id",stage.subtitle),element("p","inspector-summary",stage.summary));
+      [["Вход",stage.inputs],["Результат",stage.outputs]].forEach(([title,items]) => {
+        if (!items) return;
+        const section = element("section","inspector-section");
+        section.append(element("h3","",title));
+        const list = element("ul","detail-list");
+        items.forEach((text) => list.append(element("li","",text)));
+        section.append(list); panel.append(section);
+      });
+      if (stage.transitions) {
+        const section = element("section","inspector-section");
+        section.append(element("h3","","Переходы"));
+        let transitions=stage.transitions;
+        const route=selectedRoute();
+        if (state.selected==="human-implementation-review" && route[state.step]==="human-implementation-review") {
+          const allowed=route[state.step-1]==="publish-blocked"?["continue"]:["rework","accept"];
+          transitions=transitions.filter((row) => allowed.includes(row[2]));
+        }
+        transitions.forEach(([condition,action]) => {
+          const row = element("div","transition");
+          row.append(element("code","",condition),element("span","",action)); section.append(row);
+        });
+        panel.append(section);
+      }
+      if (stage.files) {
+        const section = element("section","inspector-section");
+        section.append(element("h3","","Связанные артефакты"));
+        stage.files.forEach((key) => {
+          const button = element("button","artifact-chip",artifacts[key].title+" ↗");
+          button.type="button"; button.dataset.artifact=key; section.append(button);
+        });
+        panel.append(section);
+      }
+      if (stage.expand) {
+        const button = element("button","expand-button",stage.expand==="plan"?"Открыть цикл плана →":"Открыть цикл реализации →");
+        button.type="button"; button.dataset.openView=stage.expand; panel.append(button);
+      }
+    }
+    function renderArtifacts(highlight) {
+      const catalog = $("artifacts");
+      catalog.replaceChildren();
+      Object.entries(artifacts).forEach(([key,item]) => {
+        const card = element("article","artifact-card"+(key===highlight?" highlight":""));
+        card.id="artifact-"+key;
+        card.append(element("span","storage",item.storage),element("h2","",item.title),element("code","path",item.path),element("p","",item.description));
+        const list = element("dl");
+        list.append(element("dt","","Создаёт / обновляет"),element("dd","",item.producer),element("dt","","Использует"),element("dd","",item.consumer));
+        card.append(list); catalog.append(card);
+      });
+    }
+    function renderControls() {
+      const route = selectedRoute();
+      $("scenario").value=state.scenario;
+      $("scenario-note").textContent=scenarios[state.scenario].note;
+      $("previous").disabled=!route.length || state.step===0;
+      $("next").disabled=!route.length || state.step===route.length-1;
+      $("counter").textContent=route.length?"Шаг "+(state.step+1)+" из "+route.length:"Выберите маршрут";
+      document.querySelectorAll(".tab").forEach((tab) => {
+        const selected=tab.dataset.view===state.view;
+        tab.setAttribute("aria-selected",String(selected)); tab.tabIndex=selected?0:-1;
+      });
+      $("workspace").hidden=state.view==="artifacts";
+      $("artifacts").hidden=state.view!=="artifacts";
+      $("artifacts").style.display=state.view==="artifacts"?"grid":"none";
+      if (state.view!=="artifacts") $("workspace").setAttribute("aria-labelledby","tab-"+state.view);
+    }
+    function render() {
+      renderControls();
+      if (state.view==="artifacts") renderArtifacts();
+      else { renderDiagram(); renderInspector(); }
+      updateHash();
+    }
+    function setView(view) {
+      if (view!=="artifacts" && view!==scenarios[state.scenario].view) {
+        state.scenario="all"; state.step=0;
+      }
+      if (view!=="artifacts" && !views[view].nodes.some((node) => node.id===state.selected)) state.selected=views[view].initial;
+      state.view=view; render();
+    }
+    function selectStage(id) {
+      if (!stages[id]) return;
+      state.selected=id;
+      const route=selectedRoute();
+      const index=route.indexOf(id);
+      if (index>=0 && route[state.step]!==id) state.step=index;
+      render();
+    }
+    function moveStep(delta) {
+      const route=selectedRoute();
+      state.step=Math.max(0,Math.min(route.length-1,state.step+delta));
+      const id=route[state.step];
+      if (!id) return;
+      if (state.view==="artifacts" || !views[state.view].nodes.some((node) => node.id===id)) state.view=scenarios[state.scenario].view;
+      state.selected=id; render();
+      const node=document.querySelector("[data-node='"+id+"']");
+      if (node) node.scrollIntoView({block:"nearest",inline:"nearest",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+    }
+    document.querySelector(".tabs").addEventListener("click",(event) => {
+      const tab=event.target.closest("[data-view]"); if (tab) setView(tab.dataset.view);
+    });
+    document.querySelector(".tabs").addEventListener("keydown",(event) => {
+      if (!["ArrowLeft","ArrowRight","Home","End"].includes(event.key)) return;
+      const tabs=[...document.querySelectorAll(".tab")];
+      const current=tabs.indexOf(document.activeElement); if (current<0) return;
+      event.preventDefault();
+      const index=event.key==="Home"?0:event.key==="End"?tabs.length-1:(current+(event.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;
+      setView(tabs[index].dataset.view); tabs[index].focus();
+    });
+    $("map-viewport").addEventListener("click",(event) => { const node=event.target.closest("[data-node]"); if(node) selectStage(node.dataset.node); });
+    $("map-viewport").addEventListener("keydown",(event) => {
+      const node=event.target.closest("[data-node]");
+      if(node && ["Enter"," "].includes(event.key)) { event.preventDefault(); selectStage(node.dataset.node); document.querySelector("[data-node='"+node.dataset.node+"']").focus({preventScroll:true}); }
+    });
+    $("inspector").addEventListener("click",(event) => {
+      const file=event.target.closest("[data-artifact]");
+      if(file) {
+        state.view="artifacts"; render(); renderArtifacts(file.dataset.artifact);
+        $("artifact-"+file.dataset.artifact).scrollIntoView({block:"nearest"}); return;
+      }
+      const button=event.target.closest("[data-open-view]");
+      if(button) setView(button.dataset.openView);
+    });
+    $("scenario").addEventListener("change",() => {
+      state.scenario=$("scenario").value; state.step=0; state.view=scenarios[state.scenario].view;
+      state.selected=selectedRoute()[0] || views[state.view].initial; render();
+    });
+    $("previous").addEventListener("click",() => moveStep(-1));
+    $("next").addEventListener("click",() => moveStep(1));
+    $("print").addEventListener("click",() => window.print());
+    const params=new URLSearchParams(location.hash.slice(1));
+    if(scenarios[params.get("scenario")]) state.scenario=params.get("scenario");
+    if(views[params.get("view")] || params.get("view")==="artifacts") state.view=params.get("view");
+    const route=selectedRoute();
+    state.step=Math.max(0,Math.min(Math.max(0,route.length-1),Number(params.get("step")) || 0));
+    const requested=params.get("stage");
+    state.selected=stages[requested]?requested:(route[state.step] || views[state.view]?.initial || "brief");
+    if(state.view!=="artifacts" && !views[state.view].nodes.some((node) => node.id===state.selected)) state.selected=views[state.view].initial;
+    render();
+  </script>
+</body>
+</html>

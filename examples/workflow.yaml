@@ -1,0 +1,337 @@
+# Адаптированный снимок; команды и скрипты требуют настройки. См. README.
+name: showcase-dev
+description: |
+  Карточка Planka → согласование propose → цикл apply/verify и ревью → archive (аппрув человека) → push → card.
+  Запускается через trigger-привязку: cron → examples/poll.py → archon trigger fire.
+provider: codex
+model: <MODEL_FOR_PLANNING_AND_VERIFY>
+effort: low
+inputs:
+  card_id:
+    description: ID карточки Planka
+    required: true
+nodes:
+  - id: brief
+    script: brief
+    runtime: uv
+    output_format:
+      type: object
+      properties:
+        card_id: { type: string }
+        ticket: { type: string }
+        feature_id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        skip_explore: { type: boolean }
+      required: [card_id, ticket, feature_id, title, skip_explore]
+      additionalProperties: false
+
+  - id: explore
+    depends_on: [brief]
+    when: "$brief.output.skip_explore == false"
+    with:
+      ticket: $brief.output.ticket
+      feature_id: $brief.output.feature_id
+      title: $brief.output.title
+      description: $brief.output.description
+    script: explore
+    runtime: uv
+
+  - id: explore-gate
+    depends_on: [explore]
+    wait:
+      event: explore.completed
+      deadline_ms: 604800000
+
+  - id: read-explore
+    depends_on: [explore-gate]
+    with:
+      wait_status: $explore-gate.output.status
+      result_path: $explore.output.result_path
+    script: read-explore
+    runtime: uv
+    output_format:
+      type: object
+      properties:
+        notes: { type: string }
+      required: [notes]
+      additionalProperties: false
+
+  - id: propose
+    depends_on: [brief, read-explore]
+    trigger_rule: none_failed_min_one_success
+    with:
+      explore_notes: { from: $read-explore.output.notes, if_skipped: "" }
+    command: propose
+    output_format:
+      type: object
+      properties:
+        change_name: { type: string }
+        open_questions: { type: array, items: { type: string } }
+        risk: { type: string, enum: [low, medium, high] }
+      required: [change_name, open_questions, risk]
+      additionalProperties: false
+
+  - id: publish-proposal
+    depends_on: [propose]
+    with:
+      change_name: $propose.output.change_name
+      feature_id: $brief.output.feature_id
+      title: $brief.output.title
+    script: publish-proposal
+    runtime: uv
+    output_format:
+      type: object
+      properties:
+        pr_url: { type: string }
+        github_cli: { type: string }
+      required: [pr_url, github_cli]
+      additionalProperties: false
+
+  - id: propose-gate
+    depends_on: [publish-proposal]
+    loop_group:
+      max_iterations: 12
+      fresh_context: true
+      # Группа возвращает вопрос, а не ответ. Передаём текст финального approve в Apply.
+      until_bash: |
+        decision=$human-proposal-review.output.decision
+        feedback=$human-proposal-review.output.text
+        test "$decision" = approve &&
+          printf '%s' "$feedback" > "$ARTIFACTS_DIR/proposal-feedback.txt"
+      nodes:
+        - id: iteration-start
+          # Успешная зависимость publish даже при пропущенном revise.
+          bash: "true"
+
+        - id: revise
+          depends_on: [iteration-start]
+          when: "$LOOP_PREV.human-proposal-review.output.decision == 'reject'"
+          command: revise-proposal
+          with:
+            feedback: "$LOOP_PREV.human-proposal-review.output.text"
+          output_format:
+            type: object
+            properties:
+              change_name: { type: string }
+              open_questions: { type: array, items: { type: string } }
+              risk: { type: string, enum: [low, medium, high] }
+            required: [change_name, open_questions, risk]
+            additionalProperties: false
+
+        - id: publish
+          depends_on: [iteration-start, revise]
+          trigger_rule: none_failed_min_one_success
+          script: publish-proposal
+          runtime: uv
+          with:
+            change_name: $propose.output.change_name
+            feature_id: $brief.output.feature_id
+            title: $brief.output.title
+          output_format:
+            type: object
+            properties:
+              pr_url: { type: string }
+              github_cli: { type: string }
+            required: [pr_url, github_cli]
+            additionalProperties: false
+
+        - id: prepare-proposal-question
+          depends_on: [publish]
+          script: question
+          runtime: uv
+          with:
+            phase: proposal
+            change_name: $propose.output.change_name
+            pr_url: $publish-proposal.output.pr_url
+            proposal: $propose.output
+            revised: { from: $revise.output, if_skipped: "" }
+            result: ""
+            verification: ""
+          output_format:
+            type: object
+            properties:
+              attention: { type: string }
+            required: [attention]
+            additionalProperties: false
+
+        - id: human-proposal-review
+          depends_on: [prepare-proposal-question]
+          wait:
+            form: approval
+            attention: $prepare-proposal-question.output.attention
+
+  - id: proposal-answer
+    depends_on: [propose-gate]
+    script: read-answer
+    runtime: uv
+    with:
+      phase: proposal
+    output_format: &review_answer
+      type: object
+      properties:
+        text: { type: string }
+      required: [text]
+      additionalProperties: false
+
+  - id: implementation
+    depends_on: [proposal-answer]
+    loop_group:
+      max_iterations: 12
+      fresh_context: true
+      until_bash: |
+        status=$apply.output.status
+        decision=$human-implementation-review.output.decision
+        feedback=$human-implementation-review.output.text
+        test "$status" = completed && test "$decision" = accept &&
+          printf '%s' "$feedback" > "$ARTIFACTS_DIR/implementation-feedback.txt"
+      nodes:
+        - id: apply
+          model: <MODEL_FOR_APPLY>
+          context: fresh
+          command: apply
+          with:
+            decision: "$LOOP_PREV.human-implementation-review.output.decision"
+            feedback: "$LOOP_PREV.human-implementation-review.output.text"
+            proposal_feedback: $proposal-answer.output.text
+          output_format:
+            type: object
+            properties:
+              status: { type: string, enum: [completed, needs_input] }
+              summary: { type: string }
+            required: [status, summary]
+            additionalProperties: false
+
+        - id: verify
+          depends_on: [apply]
+          when: "$apply.output.status == 'completed'"
+          context: fresh
+          command: verify
+          output_format:
+            type: object
+            properties:
+              verdict: { type: string, enum: [ready, needs_work] }
+              summary: { type: string }
+            required: [verdict, summary]
+            additionalProperties: false
+
+        - id: publish-review
+          depends_on: [apply, verify]
+          trigger_rule: none_failed_min_one_success
+          script: publish-review
+          runtime: uv
+          with:
+            change_name: $propose.output.change_name
+            feature_id: $brief.output.feature_id
+            pr_url: $publish-proposal.output.pr_url
+            result: $apply.output
+            verification: { from: $verify.output, if_skipped: "" }
+          output_format:
+            type: object
+            properties:
+              pr_url: { type: string }
+              head_sha: { type: string }
+            required: [pr_url, head_sha]
+            additionalProperties: false
+
+        - id: prepare-question
+          depends_on: [publish-review]
+          script: question
+          runtime: uv
+          with:
+            phase: implementation
+            change_name: $propose.output.change_name
+            pr_url: $publish-proposal.output.pr_url
+            proposal: ""
+            revised: ""
+            result: $apply.output
+            verification: { from: $verify.output, if_skipped: "" }
+          output_format:
+            type: object
+            properties:
+              attention: { type: string }
+              options:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    label: { type: string }
+                  required: [id, label]
+                  additionalProperties: false
+              verdict: { type: string, enum: ["", ready, needs_work] }
+            required: [attention, options, verdict]
+            additionalProperties: false
+
+        - id: human-implementation-review
+          depends_on: [prepare-question]
+          wait:
+            form: select
+            attention: $prepare-question.output.attention
+            options: $prepare-question.output.options
+
+  - id: implementation-answer
+    depends_on: [implementation]
+    script: read-answer
+    runtime: uv
+    with:
+      phase: implementation
+    output_format: *review_answer
+
+  - id: archive-gate
+    depends_on: [implementation-answer]
+    wait:
+      form: approval
+      attention: |
+        Архивировать изменение $propose.output.change_name с синхронизацией delta specs?
+        Вердикт Verify: $implementation.output.verdict
+        Отчёт: openspec/changes/$propose.output.change_name/review.md
+        Draft PR: $publish-proposal.output.pr_url
+        Approve — синхронизировать спецификации, архивировать изменение и обновить существующий PR.
+        Reject — оставить change активным и завершить запуск без архивации.
+        Принятые исключения из обсуждения PR и текст приёмки будут переданы Archive.
+
+  - id: archive
+    depends_on: [archive-gate]
+    when: "$archive-gate.output.decision == 'approve'"
+    context: fresh
+    command: archive
+    with:
+      acceptance_text: $implementation-answer.output.text
+    output_format:
+      type: object
+      properties:
+        archived: { type: boolean }
+        archive_path: { type: string }
+        summary: { type: string }
+      required: [archived, archive_path, summary]
+      additionalProperties: false
+
+  - id: push
+    depends_on: [archive]
+    when: "$archive.output.archived == true"
+    with:
+      change_name: $propose.output.change_name
+      feature_id: $brief.output.feature_id
+      archive_path: $archive.output.archive_path
+      pr_url: $publish-proposal.output.pr_url
+      verdict: $implementation.output.verdict
+    script: push
+    runtime: uv
+    output_format:
+      type: object
+      properties:
+        pr_url: { type: string }
+        head_sha: { type: string }
+      required: [pr_url, head_sha]
+      additionalProperties: false
+
+  - id: card
+    depends_on: [push]
+    with:
+      change_name: $propose.output.change_name
+      verdict: $implementation.output.verdict
+      archive_path: $archive.output.archive_path
+      pr_url: $push.output.pr_url
+    script: card
+    runtime: uv
