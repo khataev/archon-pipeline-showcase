@@ -21,3 +21,6 @@ th { background: #f5f7f9; }
 .mermaid svg { max-width: 100%; height: auto; }
 .site-footer { max-width: 1100px; margin: 0 auto; padding: 0 28px 32px; color: #65748a; font-size: 13px; }
 @media (max-width: 600px) { .content { margin: 16px 12px; } .navigation { padding: 16px; } .nav-links { gap: 12px; } }
+
+/* Фиксируем ширину названий компонентов и оставляем таблицу прокручиваемой на узком экране. */
+th:first-child, td:first-child { min-width: 14rem; width: 28%; }
