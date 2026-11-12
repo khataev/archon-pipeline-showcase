@@ -63,11 +63,8 @@
     .edge-label { font: 11px ui-monospace, Consolas, monospace; fill: #65748a; }
     .edge-label-bg { fill: #fbfcfd; }
     .stage { cursor: pointer; outline: none; }
-    .stage rect.node-body { fill: #fff; stroke: #d6dee8; stroke-width: 1.3; }
-    .stage:hover rect.node-body { stroke: #879aad; }
-    .stage.selected rect.node-body, .stage:focus-visible rect.node-body { stroke: var(--accent); stroke-width: 2.6; fill: #f0faf6; }
-    .stage.on-route rect.node-body { stroke: #83b6a9; fill: #f8fcfa; }
-    .stage.on-route.selected rect.node-body { fill: #eaf8f1; stroke: var(--accent); }
+    .stage rect.node-body { fill: var(--kind-tint); stroke: var(--kind-color); stroke-width: 1.3; }
+    .stage.selected rect.node-body, .stage:focus-visible rect.node-body { stroke-width: 2.6; }
     .stage-title { font-size: 16px; font-weight: 650; fill: var(--ink); letter-spacing: -.25px; }
     .stage-subtitle { font: 11.5px ui-monospace, Consolas, monospace; fill: #728197; }
     .stage-kind { font-size: 10px; letter-spacing: 1.1px; font-weight: 700; }
@@ -217,11 +214,11 @@
     }
 
     const kinds = {
-      agent: {label: "Агент", color: "#4262bd"},
-      script: {label: "Скрипт", color: "#647489"},
-      human: {label: "Человек", color: "#95620b"},
-      artifact: {label: "Артефакт", color: "#8153a2"},
-      cycle: {label: "Цикл", color: "#087d6b"}
+      agent: {label: "Агент", color: "#4262bd", tint: "#edf1fa"},
+      script: {label: "Скрипт", color: "#647489", tint: "#f0f2f5"},
+      human: {label: "Человек", color: "#95620b", tint: "#faf3e7"},
+      artifact: {label: "Артефакт", color: "#8153a2", tint: "#f5eff9"},
+      cycle: {label: "Цикл", color: "#087d6b", tint: "#eaf8f1"}
     };
     const artifacts = {
       explore: {title: "Итоги Explore", path: "tmp/archon/RUN/explore/result.md", storage: "Временный файл · не в Git", description: "Согласованные выводы и решения интерактивного обсуждения. После записи и закрытия файла отправляется событие explore.completed.", producer: "Explore", consumer: "Propose; полный текст также остаётся в output read-explore"},
@@ -374,7 +371,7 @@
       view.nodes.forEach((box,index) => {
         const stage = stages[box.id];
         const kind = kinds[stage.kind];
-        const group = svgElement("g",{class:"stage"+(state.selected===box.id?" selected":"")+(route.includes(box.id)?" on-route":""),tabindex:0,role:"button","aria-label":stage.title+" — "+kind.label,"aria-pressed":String(state.selected===box.id),"data-node":box.id});
+        const group = svgElement("g",{style:"--kind-color:"+kind.color+";--kind-tint:"+kind.tint,class:"stage"+(state.selected===box.id?" selected":"")+(route.includes(box.id)?" on-route":""),tabindex:0,role:"button","aria-label":stage.title+" — "+kind.label,"aria-pressed":String(state.selected===box.id),"data-node":box.id});
         group.append(svgElement("title",{},stage.summary));
         group.append(svgElement("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:11,class:"node-body"}));
         group.append(svgElement("rect",{x:box.x+15,y:box.y+17,width:5,height:5,rx:2.5,fill:kind.color}));
