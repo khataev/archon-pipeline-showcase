@@ -110,7 +110,9 @@
     @media (max-width: 760px) {
       .shell { padding: 0 14px; }
       .topbar { min-height: 60px; }
-      .brand small, .header-actions a { display: none; }
+      .brand small { display: none; }
+      .topbar, .header-actions { flex-wrap: wrap; }
+      .header-actions { gap: 12px; padding-bottom: 12px; }
       .intro { padding-top: 25px; }
       .intro p { font-size: 13px; }
       .controls { padding: 12px; gap: 12px; }
@@ -145,7 +147,8 @@
     <div class="shell topbar">
       <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span> Agentic development <small>карта процесса</small></div>
       <div class="header-actions">
-        <a href="../examples/workflow.yaml">Снимок workflow ↗</a>
+        <a href="https://khataev.github.io/archon-pipeline-showcase/">← На главную</a>
+        <a href="https://github.com/khataev/archon-pipeline-showcase/blob/master/examples/workflow.yaml" target="_blank" rel="noopener noreferrer">Снимок workflow ↗</a>
         <button class="quiet-button" type="button" id="print">Печать</button>
       </div>
     </div>
